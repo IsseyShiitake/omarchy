@@ -44,12 +44,30 @@ assertEqual(cleared.action, '', 'an explicit empty action clears it')
 assertEqual(cleared.kind, 'menu', 'a row with no action becomes a submenu')
 
 // ---- guards: the menu id is data, never shell ------------------------------
-const marker = path.join(os.tmpdir(), 'omarchy-menu-guard-marker-' + process.pid)
-fs.rmSync(marker, { force: true })
+// The generated batch probes packages and may cache the answer in
+// $XDG_RUNTIME_DIR, so this case runs against a scratch home and stub
+// commands: tests must not touch the developer's session (docs/testing.md).
+const sandbox = fs.mkdtempSync(path.join(os.tmpdir(), 'omarchy-menu-model-test-'))
+process.on('exit', () => fs.rmSync(sandbox, { recursive: true, force: true }))
+const stubBin = path.join(sandbox, 'bin')
+const runDir = path.join(sandbox, 'run')
+fs.mkdirSync(stubBin)
+fs.mkdirSync(runDir)
+for (const stub of ['pacman', 'pacman-conf']) {
+  fs.writeFileSync(path.join(stubBin, stub), '#!/bin/bash\nexit 1\n', { mode: 0o755 })
+}
+const env = {
+  ...process.env,
+  HOME: path.join(sandbox, 'home'),
+  XDG_RUNTIME_DIR: runDir,
+  OMARCHY_PACMAN_DB_PATH: path.join(sandbox, 'pacman-db'),
+  PATH: stubBin + ':' + process.env.PATH
+}
+fs.mkdirSync(env.HOME)
+const marker = path.join(sandbox, 'guard-marker')
 const hostile = 'x; touch ' + marker + '; #'
 const script = M.guardScript({ [hostile]: { id: hostile, when: 'true' } })
-const out = execFileSync('bash', ['-c', script], { encoding: 'utf8' })
+const out = execFileSync('bash', ['-c', script], { encoding: 'utf8', env })
 assertEqual(out.trim(), hostile + ':w:1', 'a hostile id is answered verbatim')
 assert(!fs.existsSync(marker), 'a hostile id does not run shell')
-fs.rmSync(marker, { force: true })
 JS
