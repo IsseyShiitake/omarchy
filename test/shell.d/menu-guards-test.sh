@@ -28,7 +28,7 @@ assert(
   script.includes("if { omarchy-pkg-present zen-browser-bin; } >/dev/null 2>&1; then printf '%s:%s:1\\n' 'install.browser.zen' 'd'; else printf '%s:%s:0\\n' 'install.browser.zen' 'd'; fi"),
   'guard script reports a disabled: as <id>:d:<0|1>'
 )
-assert(!/\bplain:[wcd]:/.test(script), 'guard script skips items with nothing to evaluate')
+assert(!/'plain' '[wcd]'/.test(script), 'guard script skips items with nothing to evaluate')
 assertEqual(menu.guardScript({ plain: items.plain }), '', 'guard script is empty when no item carries a guard')
 
 // The cost the menu is paying is per fork, not per expression, so what makes
